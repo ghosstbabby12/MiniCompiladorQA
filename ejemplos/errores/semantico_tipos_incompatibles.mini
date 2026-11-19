@@ -1,0 +1,3 @@
+// ERROR SEMÁNTICO: no se puede asignar un bool a una variable int.
+int edad = 18;
+edad = edad > 10;

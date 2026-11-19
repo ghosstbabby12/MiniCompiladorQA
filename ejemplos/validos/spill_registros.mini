@@ -1,0 +1,12 @@
+// Esta expresión necesita 5 temporales vivas a la vez, pero la CPU solo tiene
+// 4 registros: una temporal se guarda en memoria (spill). El resultado es 100.
+int a = 1;
+int b = 2;
+int c = 3;
+int d = 4;
+int e = 5;
+int f = 6;
+int g = 7;
+int h = 8;
+int resultado = a * b + (c * d + (e * f + g * h));
+print(resultado);

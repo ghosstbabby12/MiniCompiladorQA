@@ -1,0 +1,2 @@
+// ERROR LÉXICO: el identificador tiene 32 caracteres (máximo 31).
+int nombre_de_variable_muy_largo_xxx = 1;

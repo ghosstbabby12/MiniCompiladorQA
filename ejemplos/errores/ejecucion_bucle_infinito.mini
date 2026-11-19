@@ -1,0 +1,7 @@
+// ERROR DE EJECUCIÓN: 'contador' nunca cambia, así que el while no termina.
+// El simulador lo detecta al superar el límite de ciclos.
+int contador = 1;
+int pasos = 0;
+while (contador > 0) {
+    pasos = pasos + 1;
+}

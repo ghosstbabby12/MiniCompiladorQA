@@ -1,0 +1,2 @@
+// ERROR LÉXICO: un número real necesita dígitos después del punto.
+float x = 3.;

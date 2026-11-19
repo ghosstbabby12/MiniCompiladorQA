@@ -1,0 +1,14 @@
+// Programa de referencia de la especificación del lenguaje Mini.
+int a = 5;
+float b = 2.5;
+int c;
+c = a + b * (a - 2) % 3;
+if (c > 10) {
+    print(c);
+} else {
+    c = c / 2;
+    print(c);
+}
+while (a > 0) {
+    a = a - 1;
+}

@@ -1,0 +1,5 @@
+// ERROR SINTÁCTICO: Mini no permite encadenar comparaciones.
+int a = 1;
+if (0 < a < 5) {
+    print(a);
+}

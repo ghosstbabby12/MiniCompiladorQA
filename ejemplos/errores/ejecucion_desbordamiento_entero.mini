@@ -1,0 +1,10 @@
+// Error de ejecución: desbordamiento de entero.
+// Un int de Mini es de 32 bits (como en C y Java): su máximo es 2147483647.
+// El bucle duplica 'saldo' hasta pasarse del máximo.
+int saldo = 1;
+int dias = 0;
+while (dias < 40) {
+    saldo = saldo * 2;
+    dias = dias + 1;
+}
+print(saldo);

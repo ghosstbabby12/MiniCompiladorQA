@@ -1,0 +1,3 @@
+// ERROR SEMÁNTICO: 'total' se usa sin haber sido declarada.
+int contador = 3;
+contador = total + 1;

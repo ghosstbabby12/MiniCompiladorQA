@@ -1,0 +1,3 @@
+// ERROR SINTÁCTICO: falta ';' al final de la línea 2 (se reporta línea 2, columna 10).
+int a = 5
+print(a);

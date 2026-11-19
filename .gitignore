@@ -1,0 +1,20 @@
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+.terraform/
+*.tfstate*
+.DS_Store
+reporte-pruebas.xml
+
+# Terraform: el lock SÍ se versiona; el estado y los plugins no.
+.terraform/
+*.tfstate*
+resultados/

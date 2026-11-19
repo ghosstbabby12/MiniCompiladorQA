@@ -1,0 +1,7 @@
+// Programa VÁLIDO que dispara advertencias de buenas prácticas.
+int list = 3;          // NOMBRE_BUILTIN: tapa el builtin list de Python
+float notaFinal = 4.5; // NO_SNAKE_CASE: debería ser nota_final
+int x;                 // NOMBRE_CORTO: una sola letra y no es contador
+print(x);              // NO_INICIALIZADA: x aún no tiene valor (valdrá 0)
+x = notaFinal * 2;     // FLOAT_A_INT: se truncan los decimales
+print(x + list);

@@ -1,0 +1,2 @@
+// ERROR SINTÁCTICO: el '(' de la columna 9 no tiene su ')'.
+int a = (1 + 2 * 3;

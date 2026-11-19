@@ -1,0 +1,2 @@
+// ERROR SEMÁNTICO: 'while' es palabra reservada; no puede ser nombre de variable.
+int while = 1;

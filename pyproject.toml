@@ -1,0 +1,109 @@
+# ---------------------------------------------------------------------------
+# MiniCompilador QA - configuración única del proyecto (PEP 621).
+# Centralizamos aquí empaquetado, pruebas, cobertura y linter para que
+# "una sola fuente de verdad" gobierne tanto la máquina local como el CI.
+# ---------------------------------------------------------------------------
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "minicompilador"
+version = "0.1.0"
+description = "Compilador didáctico del lenguaje Mini (curso Pruebas y Mantenimiento de Software)"
+requires-python = ">=3.12"
+# El compilador es Python puro; jsonschema solo valida el reporte de salida.
+dependencies = ["jsonschema>=4.20"]
+
+[project.scripts]
+minicompilador = "minicompilador.cli:main"
+
+[project.optional-dependencies]
+# El compilador no necesita servidor web: la API es un "extra" opcional.
+# Así la imagen Docker instala ".[api]" y el CLI sigue siendo liviano.
+api = [
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.29",
+]
+# Guardar cada reporte en S3 (LocalStack en desarrollo). Opcional: sin
+# configurar el bucket, la API funciona igual y no guarda nada.
+s3 = [
+    "boto3>=1.34",
+]
+# Pruebas de carga (no van en la imagen de producción).
+carga = [
+    "locust>=2.29",
+]
+# Pruebas de contrato: el "consumidor" solo habla HTTP (requests) y valida
+# con el esquema publicado; NO importa el código del compilador.
+contrato = [
+    "pytest>=8",
+    "requests>=2.31",
+    "jsonschema>=4.20",
+]
+dev = [
+    "minicompilador[api,s3,contrato,carga]",
+    "pytest-cov>=5",
+    "httpx>=0.27",  # requerido por fastapi.testclient.TestClient
+    "pyyaml>=6",  # las pruebas de configuración leen los workflows de CI
+    "ruff>=0.6",
+]
+
+# Layout "src/": obliga a instalar el paquete para probarlo, así las pruebas
+# usan exactamente lo mismo que se distribuye (evita falsos positivos).
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+minicompilador = ["esquemas/*.json"]
+
+# ---------------------------------------------------------------------------
+# Pruebas + quality gate de cobertura
+# ---------------------------------------------------------------------------
+[tool.pytest.ini_options]
+# Por defecto solo las unitarias; las de contrato (tests/api) necesitan la API
+# corriendo y se lanzan aparte (docker compose o API_URL=... pytest tests/api).
+testpaths = ["tests/unit"]
+addopts = [
+    "-ra",
+    "--strict-markers",
+    "--cov=minicompilador",
+    "--cov-branch",
+    "--cov-report=term-missing",
+    "--cov-report=html",
+    # Quality gate: si la cobertura baja de 85 %, pytest termina con error
+    # y el pipeline de CI se pone en rojo.
+    "--cov-fail-under=85",
+]
+filterwarnings = [
+    # Starlette sugiere migrar su TestClient a otro paquete HTTP; es un aviso
+    # de la librería, no de nuestro código. Se revisará al actualizar FastAPI.
+    "ignore:Using `httpx` with `starlette.testclient`",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["minicompilador"]
+# Rutas relativas en coverage.xml: así SonarCloud (que analiza en otra carpeta
+# del runner) encuentra los archivos y muestra la cobertura línea por línea.
+relative_files = true
+
+[tool.coverage.html]
+directory = "htmlcov"
+
+# ---------------------------------------------------------------------------
+# Linter / formateador
+# ---------------------------------------------------------------------------
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+# E/W: estilo PEP 8 · F: errores reales (pyflakes) · I: orden de imports
+# N: nombres · UP: sintaxis moderna · B: bugs comunes · SIM: simplificaciones
+# PT: buenas prácticas de pytest
+select = ["E", "W", "F", "I", "N", "UP", "B", "SIM", "PT"]
+# N818 exige el sufijo inglés "...Error"; la especificación usa nombres en
+# español con prefijo (ErrorLexico, ErrorSintactico), así que se desactiva.
+ignore = ["N818"]

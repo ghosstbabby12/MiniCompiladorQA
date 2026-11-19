@@ -1,0 +1,144 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://minicompilador.local/esquemas/reporte.schema.json",
+  "title": "Reporte de MiniCompilador QA",
+  "description": "Resultado de compilar un programa Mini. Las secciones de fases no alcanzadas valen null.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version", "fase_alcanzada", "exito", "fases_completadas", "tokens", "ast",
+    "tabla_simbolos", "temporales", "total_temporales", "definiciones_temporales",
+    "optimizaciones", "recorrido_postorden", "codigo_intermedio", "asignacion_registros",
+    "registros_max_simultaneos", "temporales_vivas_max", "spills", "instrucciones_cpu",
+    "metricas", "memoria_final", "salida", "errores", "advertencias"
+  ],
+  "$defs": {
+    "fase": {
+      "enum": ["lexico", "sintactico", "semantico", "intermedio", "registros", "simulacion"]
+    },
+    "posicion": { "type": ["integer", "null"], "minimum": 1 },
+    "valor": { "type": ["integer", "number", "boolean", "null"] },
+    "temporal": { "type": "string", "pattern": "^%t[1-9][0-9]*$" },
+    "listaTexto": { "type": ["array", "null"], "items": { "type": "string" } },
+    "token": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tipo", "valor", "linea", "columna"],
+      "properties": {
+        "tipo": { "type": "string" },
+        "valor": { "type": ["string", "integer", "number", "boolean"] },
+        "linea": { "type": "integer", "minimum": 1 },
+        "columna": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "nodo": {
+      "type": "object",
+      "required": ["nodo", "linea", "columna"],
+      "properties": {
+        "nodo": {
+          "enum": ["Programa", "Declaracion", "Asignacion", "If", "While", "Print",
+                   "BinOp", "Numero", "Variable"]
+        },
+        "linea": { "type": "integer", "minimum": 0 },
+        "columna": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "simbolo": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tipo", "direccion", "inicializada", "usada", "linea", "columna"],
+      "properties": {
+        "tipo": { "enum": ["int", "float", "bool"] },
+        "direccion": { "type": "integer", "minimum": 0 },
+        "inicializada": { "type": "boolean" },
+        "usada": { "type": "boolean" },
+        "linea": { "type": "integer", "minimum": 1 },
+        "columna": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "error": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fase", "tipo", "mensaje", "linea", "columna", "sugerencia"],
+      "properties": {
+        "fase": { "$ref": "#/$defs/fase" },
+        "tipo": { "enum": ["ErrorLexico", "ErrorSintactico", "ErrorSemantico", "ErrorEjecucion"] },
+        "mensaje": { "type": "string", "minLength": 1 },
+        "linea": { "$ref": "#/$defs/posicion" },
+        "columna": { "$ref": "#/$defs/posicion" },
+        "sugerencia": { "type": ["string", "null"] }
+      }
+    },
+    "advertencia": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fase", "codigo", "mensaje", "linea", "columna", "sugerencia"],
+      "properties": {
+        "fase": { "$ref": "#/$defs/fase" },
+        "codigo": { "type": "string", "pattern": "^[A-Z_]+$" },
+        "mensaje": { "type": "string", "minLength": 1 },
+        "linea": { "$ref": "#/$defs/posicion" },
+        "columna": { "$ref": "#/$defs/posicion" },
+        "sugerencia": { "type": ["string", "null"] }
+      }
+    }
+  },
+  "properties": {
+    "version": { "type": "string" },
+    "fase_alcanzada": { "$ref": "#/$defs/fase" },
+    "exito": { "type": "boolean" },
+    "fases_completadas": { "type": "array", "items": { "$ref": "#/$defs/fase" }, "maxItems": 6 },
+    "tokens": { "type": ["array", "null"], "items": { "$ref": "#/$defs/token" } },
+    "ast": {
+      "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/nodo" }]
+    },
+    "tabla_simbolos": {
+      "type": ["object", "null"],
+      "additionalProperties": { "$ref": "#/$defs/simbolo" }
+    },
+    "temporales": { "type": ["array", "null"], "items": { "$ref": "#/$defs/temporal" } },
+    "total_temporales": { "type": ["integer", "null"], "minimum": 0 },
+    "definiciones_temporales": {
+      "type": ["object", "null"],
+      "propertyNames": { "$ref": "#/$defs/temporal" },
+      "additionalProperties": { "type": "string" }
+    },
+    "optimizaciones": { "$ref": "#/$defs/listaTexto" },
+    "recorrido_postorden": { "$ref": "#/$defs/listaTexto" },
+    "codigo_intermedio": { "$ref": "#/$defs/listaTexto" },
+    "asignacion_registros": {
+      "type": ["object", "null"],
+      "propertyNames": { "$ref": "#/$defs/temporal" },
+      "additionalProperties": { "type": "string", "pattern": "^(R[0-3]|MEM\\[[0-9]+\\])$" }
+    },
+    "registros_max_simultaneos": { "type": ["integer", "null"], "minimum": 0, "maximum": 4 },
+    "temporales_vivas_max": { "type": ["integer", "null"], "minimum": 0 },
+    "spills": { "type": ["integer", "null"], "minimum": 0 },
+    "instrucciones_cpu": { "$ref": "#/$defs/listaTexto" },
+    "metricas": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["ciclos", "lecturas_memoria", "escrituras_memoria", "instrucciones_ejecutadas"],
+      "properties": {
+        "ciclos": { "type": "integer", "minimum": 0 },
+        "lecturas_memoria": { "type": "integer", "minimum": 0 },
+        "escrituras_memoria": { "type": "integer", "minimum": 0 },
+        "instrucciones_ejecutadas": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "memoria_final": {
+      "type": ["object", "null"],
+      "additionalProperties": { "$ref": "#/$defs/valor" }
+    },
+    "salida": { "$ref": "#/$defs/listaTexto" },
+    "errores": { "type": "array", "items": { "$ref": "#/$defs/error" }, "maxItems": 1 },
+    "advertencias": { "type": "array", "items": { "$ref": "#/$defs/advertencia" } }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "exito": { "const": true } } },
+      "then": { "properties": { "errores": { "maxItems": 0 } } },
+      "else": { "properties": { "errores": { "minItems": 1 } } }
+    }
+  ]
+}

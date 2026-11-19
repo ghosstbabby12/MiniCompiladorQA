@@ -1,0 +1,2 @@
+// ERROR LÉXICO: '%' es solo el operador módulo; '%a' no es un nombre válido.
+%a = 5;

@@ -1,0 +1,7 @@
+// ERROR DE EJECUCIÓN: compila bien, pero 'divisor' vale 0 al dividir.
+int total = 10;
+int divisor = 3;
+while (divisor > 0) {
+    divisor = divisor - 1;
+}
+print(total / divisor);
