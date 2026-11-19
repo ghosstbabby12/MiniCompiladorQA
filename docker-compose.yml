@@ -1,0 +1,41 @@
+# ===========================================================================
+# MiniCompilador QA - API + pruebas de contrato
+#
+#   docker compose up --build --abort-on-container-exit --exit-code-from test-runner
+#
+# - api:         la imagen de producción (etapa final del Dockerfile).
+# - test-runner: espera a que la API esté SANA (healthcheck) y le corre las
+#                pruebas de contrato por HTTP. Su código de salida es el de
+#                todo el comando: 0 = contrato cumplido, distinto de 0 = roto.
+# ===========================================================================
+services:
+  api:
+    build:
+      context: .
+      target: produccion
+    image: minicompilador-api:local
+    ports:
+      - "8000:8000"
+    read_only: true            # el compilador no escribe en disco
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      # Mismo chequeo que el Dockerfile, pero más frecuente para arrancar rápido.
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/salud', timeout=2)"]
+      interval: 3s
+      timeout: 3s
+      start_period: 5s
+      retries: 10
+
+  test-runner:
+    build:
+      context: .
+      target: contrato
+    image: minicompilador-contrato:local
+    environment:
+      API_URL: http://api:8000   # nombre del servicio = nombre DNS en la red de compose
+    depends_on:
+      api:
+        condition: service_healthy

@@ -1,0 +1,17 @@
+# Lo que NO entra al contexto de build: builds más rápidos y sin filtrar
+# archivos locales (venv, cachés, estado de Terraform) dentro de la imagen.
+.git
+.github
+.venv
+**/__pycache__
+**/*.pyc
+.pytest_cache
+.ruff_cache
+.coverage
+htmlcov
+infra
+docs
+*.egg-info
+build
+dist
+.env
