@@ -1,0 +1,136 @@
+# ===========================================================================
+# Despliegue Continuo (CD) - MiniCompilador QA
+#
+#   CI verde en main ──> publicar (imagen :<sha> en Docker Hub)
+#                    ──> desplegar (healthcheck + humo; si falla → ROLLBACK)
+#                    ──> promover (:estable = la versión que pasó)
+#
+# Etiquetas de la imagen:
+#   :<sha>     inmutable, una por commit (trazabilidad: qué código corre).
+#   :estable   puntero a la ÚLTIMA versión que pasó la verificación. Es a la
+#              que se vuelve en un rollback.
+#
+# Secrets necesarios (Settings → Secrets and variables → Actions):
+#   DOCKERHUB_USERNAME, DOCKERHUB_TOKEN (token de acceso, NO la contraseña).
+#
+# Entorno de despliegue: el propio runner de GitHub hace de "servidor"
+# (efímero). En un servidor real, el mismo desplegar.sh se ejecutaría por SSH
+# con la llave guardada también como Secret; la lógica no cambia.
+# ===========================================================================
+name: CD
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      simular_fallo:
+        description: "Desplegar una versión rota a propósito para demostrar el rollback"
+        type: boolean
+        default: false
+
+# Nunca dos despliegues a la vez; tampoco se cancela uno a medias.
+concurrency:
+  group: cd-produccion
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  # -------------------------------------------------------------------------
+  publicar:
+    name: Publicar imagen
+    # Solo si CI terminó en verde (o si se lanzó a mano).
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      imagen: ${{ steps.nombre.outputs.imagen }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Exactamente el commit que CI aprobó, no "lo último de main".
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Nombre de la imagen
+        id: nombre
+        run: |
+          sha=$(git rev-parse --short=12 HEAD)
+          echo "imagen=${{ secrets.DOCKERHUB_USERNAME }}/minicompilador-api:${sha}" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Login en Docker Hub (credenciales desde Secrets)
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Construir y publicar
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: produccion
+          push: true
+          tags: ${{ steps.nombre.outputs.imagen }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # -------------------------------------------------------------------------
+  desplegar:
+    name: Desplegar (con rollback automático)
+    needs: publicar
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: produccion   # permite exigir aprobación manual en GitHub
+    env:
+      REPOSITORIO: ${{ secrets.DOCKERHUB_USERNAME }}/minicompilador-api
+      IMAGEN: ${{ needs.publicar.outputs.imagen }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login en Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # El runner arranca vacío: se pone en marcha la versión :estable para que
+      # el despliegue tenga una "producción actual" a la cual volver.
+      - name: Levantar la versión estable actual (si existe)
+        run: |
+          if docker pull "${REPOSITORIO}:estable"; then
+            ./infra/despliegue/desplegar.sh "${REPOSITORIO}:estable"
+          else
+            echo "::notice::No hay :estable todavía (primer despliegue)."
+          fi
+
+      - name: Preparar versión rota (solo si se pidió simular el fallo)
+        if: inputs.simular_fallo
+        run: |
+          printf 'FROM %s\nCMD ["python", "-c", "import sys; sys.exit(1)"]\n' "$IMAGEN" \
+            | docker build -t "${IMAGEN}-rota" -
+          echo "IMAGEN=${IMAGEN}-rota" >> "$GITHUB_ENV"
+
+      - name: Desplegar la versión nueva
+        run: |
+          docker pull "$IMAGEN" 2>/dev/null || true   # la rota es local
+          ./infra/despliegue/desplegar.sh "$IMAGEN"
+
+      - name: Promover a :estable
+        run: |
+          docker tag "$IMAGEN" "${REPOSITORIO}:estable"
+          docker push "${REPOSITORIO}:estable"
+
+      - name: Resumen
+        if: always()
+        run: |
+          {
+            echo "### Despliegue"
+            echo "- Imagen: \`${IMAGEN}\`"
+            echo "- Corriendo ahora: \`$(docker inspect --format '{{.Config.Image}}' minicompilador-api 2>/dev/null || echo ninguna)\`"
+            echo "- Resultado: ${{ job.status }}"
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,52 @@
+# ===========================================================================
+# Override: la API guardando cada reporte en S3 (LocalStack) creado con Terraform.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.s3.yml up -d --wait api
+#
+# Orden de arranque (depends_on):
+#   localstack (sano) → terraform (apply terminó OK) → api (sana) → test-runner
+#
+# Las credenciales "test" son las ficticias que acepta LocalStack; en AWS real
+# vendrían de un rol IAM o de Secrets, nunca escritas aquí.
+# ===========================================================================
+x-aws-local: &aws-local
+  AWS_ACCESS_KEY_ID: test
+  AWS_SECRET_ACCESS_KEY: test
+  AWS_DEFAULT_REGION: us-east-1
+  AWS_ENDPOINT_URL: http://localstack:4566
+
+services:
+  localstack:
+    image: localstack/localstack:3.8.1   # versión fijada (la "latest" cambia sin aviso)
+    environment:
+      SERVICES: s3
+    ports:
+      - "4566:4566"
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:4566/_localstack/health"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  terraform:
+    image: hashicorp/terraform:1.9.8
+    working_dir: /infra/terraform
+    volumes:
+      - ./infra:/infra
+    entrypoint: ["sh", "-c"]
+    command:
+      - >-
+        terraform init -input=false &&
+        terraform apply -auto-approve -input=false
+        -var endpoint_localstack=http://localstack:4566
+    depends_on:
+      localstack:
+        condition: service_healthy
+
+  api:
+    environment:
+      <<: *aws-local
+      MINICOMPILADOR_BUCKET: minicompilador-reportes
+    depends_on:
+      terraform:
+        condition: service_completed_successfully

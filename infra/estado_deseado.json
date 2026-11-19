@@ -1,0 +1,13 @@
+{
+  "bucket": "minicompilador-reportes",
+  "region": "us-east-1",
+  "versionado": "Enabled",
+  "cifrado": "AES256",
+  "bloqueo_acceso_publico": true,
+  "dias_retencion_reportes": 30,
+  "etiquetas": {
+    "proyecto": "minicompilador-qa",
+    "entorno": "desarrollo",
+    "gestionado-por": "terraform"
+  }
+}
